@@ -22,7 +22,6 @@ export const Route = createFileRoute("/api/ask")({
         try {
         upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
-          signal: request.signal,
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "X-Lovable-AIG-SDK": "fetch" },
           body: JSON.stringify({
             model: "google/gemini-3.8-flash",
