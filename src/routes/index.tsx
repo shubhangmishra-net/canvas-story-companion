@@ -155,11 +155,11 @@ function Deck() {
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, [go]);
-  const s = slides[i];
+  const s = slides[i]!;
   return (
     <main className="bg-sky-gradient relative flex h-screen flex-col overflow-hidden"
-      onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
-      onTouchEnd={(e) => { if (touch.current === null) return; const dx = e.changedTouches[0].clientX - touch.current; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); touch.current = null; }}>
+      onTouchStart={(e) => (touch.current = e.touches[0]?.clientX ?? null)}
+      onTouchEnd={(e) => { if (touch.current === null) return; const dx = (e.changedTouches[0]?.clientX ?? 0) - touch.current; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); touch.current = null; }}>
       {[8, 22, 40, 63, 78, 91].map((l, n) => (
         <span key={l} className="animate-twinkle pointer-events-none absolute font-pixel text-star" style={{ left: `${l}%`, top: `${6 + (n % 3) * 9}%`, animationDelay: `${n * 0.2}s` }}>✦</span>))}
       <header className="relative z-10 flex items-center justify-between p-4 font-pixel text-[10px] md:text-xs">
