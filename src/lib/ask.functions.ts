@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { JWALA_WIKI } from "./wiki-jwala.server";
 
-const SYSTEM = `You are the narrator of a retro pixel-game presentation titled "Personalities Who Raised the Universal Consciousness — Jwala Gutta". Answer audience questions about Jwala Gutta (Indian badminton doubles champion), her life, achievements, activism, and the idea of universal (collective) consciousness. Keep answers under 90 words, warm, clear, in plain text. If unsure of a fact, say so.`;
+const SYSTEM = `You are the narrator of a retro pixel-game presentation titled "Personalities Who Raised the Universal Consciousness — Jwala Gutta". Answer audience questions about Jwala Gutta (Indian badminton doubles champion), her life, achievements, activism, and the idea of universal (collective) consciousness. Keep answers under 90 words, warm, clear, in plain text. If unsure of a fact, say so. Base facts about Jwala Gutta ONLY on this Wikipedia article:\n\n${JWALA_WIKI}`;
 
 export const askGemini = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ question: z.string().min(1).max(500) }).parse(d))
