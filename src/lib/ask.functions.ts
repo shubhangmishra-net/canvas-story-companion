@@ -6,7 +6,7 @@ const SYSTEM = `You are the narrator of a retro pixel-game presentation titled "
 export const askGemini = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ question: z.string().min(1).max(500) }).parse(d))
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
+    const key = process.env["LOVABLE_API_KEY"];
     if (!key) return { error: "AI is not configured." };
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
