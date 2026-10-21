@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { askGemini } from "@/lib/ask.functions";
+import portrait from "@/assets/jwala-portrait.jpg.asset.json";
+import arjuna from "@/assets/jwala-arjuna.jpg.asset.json";
+import cwg from "@/assets/jwala-cwg.jpg.asset.json";
+import diju from "@/assets/jwala-diju.jpg.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -44,9 +46,9 @@ function Medals() {
 
 function Impact() {
   const items = [
-    ["🪙", "Breast milk donation", "After her daughter's birth she donated nearly 60 litres of breast milk, sparking talk about neonatal care and breaking taboos around lactation."],
-    ["🏀", "Equality in sport", "She pulled doubles badminton out of the shadows, called out systemic neglect, and spoke up about harassment and bias during #MeToo."],
-    ["🌳", "Fertility & maternity", "By openly sharing her IVF journey she helped normalise talk about reproductive challenges and postpartum recovery."],
+    ["🪙", "Breaking the body-shaming taboo", "She openly rejected the idea that a 'serious' sportswoman must dress shabbily: \"What's wrong in liking clothes or dressing up?\" In a culture that polices how women athletes look, saying this out loud challenged a deep, rarely-discussed double standard."],
+    ["🏀", "Fighting for women's doubles", "When the Indian Badminton League halved her and Ponnappa's base price without telling them and dropped women's doubles, she spoke out — and kept pushing officials to support doubles players."],
+    ["🌳", "Speaking her mind", "\"My father told me at a young age to fight for what I believed in.\" She backs women's empowerment, gender equality, health and education — and says controversy won't silence her."],
   ];
   const [open, setOpen] = useState<number | null>(null);
   return (
@@ -84,20 +86,29 @@ function Quiz() {
 }
 
 function AskAI() {
-  const ask = useServerFn(askGemini);
   const [q, setQ] = useState("");
-  const [log, setLog] = useState<{ q: string; a: string; err?: boolean }[]>([]);
+  const [log, setLog] = useState<{ q: string; a: string; err?: boolean; live?: boolean }[]>([]);
   const [busy, setBusy] = useState(false);
+  const update = (patch: Partial<{ a: string; err: boolean; live: boolean }>) =>
+    setLog((l) => (l[0] ? [{ ...l[0], ...patch }, ...l.slice(1)] : l));
   const submit = async (question: string) => {
     if (!question.trim() || busy) return;
     setBusy(true); setQ("");
+    setLog((l) => [{ q: question, a: "", live: true }, ...l]);
     try {
-      const r = await ask({ data: { question } });
-      setLog((l) => [{ q: question, a: "answer" in r && r.answer ? r.answer : (r as { error?: string }).error ?? "No answer.", err: !("answer" in r) }, ...l]);
-    } catch { setLog((l) => [{ q: question, a: "Connection lost. Try again.", err: true }, ...l]); }
+      const res = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+      if (!res.ok || !res.body) {
+        const j = await res.json().catch(() => ({}));
+        update({ a: j.error ?? "The AI couldn't answer right now.", err: true, live: false });
+      } else {
+        const reader = res.body.getReader(); const dec = new TextDecoder(); let text = "";
+        for (;;) { const { done, value } = await reader.read(); if (done) break; text += dec.decode(value, { stream: true }); update({ a: text }); }
+        update({ a: text || "No answer came back — try rephrasing.", err: !text, live: false });
+      }
+    } catch { update({ a: "Connection lost. Try again.", err: true, live: false }); }
     setBusy(false);
   };
-  const samples = ["What does universal consciousness mean?", "What happened at the 2010 Commonwealth Games?", "Why is doubles badminton special?"];
+  const samples = ["What does universal consciousness mean?", "How did Jwala fight body shaming?", "What happened at the 2010 Commonwealth Games?"];
   return (
     <div className="space-y-4" onKeyDown={(e) => e.stopPropagation()}>
       <form onSubmit={(e) => { e.preventDefault(); submit(q); }} className="flex gap-3">
@@ -109,15 +120,33 @@ function AskAI() {
         {samples.map((s) => <button key={s} onClick={() => submit(s)} className="pixel-btn bg-muted px-3 py-2 text-[10px] text-foreground">{s}</button>)}
       </div>
       <div className="max-h-[38vh] space-y-3 overflow-y-auto pr-2">
-        {busy && <Card><span className="text-2xl">GEMINI IS THINKING<span className="animate-blink">_</span></span></Card>}
         {log.map((m, i) => (
           <Card key={i}>
             <p className="text-xl text-primary">&gt; {m.q}</p>
-            <p className={`mt-2 text-2xl leading-snug ${m.err ? "text-destructive" : ""}`}>{m.a}</p>
+            <p className={`mt-2 text-2xl leading-snug ${m.err ? "text-destructive" : ""}`}>{m.a || "GEMINI IS THINKING"}{m.live && <span className="animate-blink">_</span>}</p>
           </Card>
         ))}
       </div>
     </div>
+  );
+}
+
+function Photo({ src, alt, caption, tilt = "-rotate-2" }: { src: string; alt: string; caption: string; tilt?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button onClick={() => setOpen(true)} className={`pixel-box group block bg-foreground p-2 pb-3 transition-transform hover:rotate-0 hover:scale-105 ${tilt}`} aria-label={`Enlarge photo: ${caption}`}>
+        <img src={src} alt={alt} loading="lazy" className="h-48 w-full object-cover md:h-56" />
+        <span className="mt-2 block font-pixel text-[9px] text-background">{caption} · TAP</span>
+      </button>
+      {open && (
+        <div role="dialog" onClick={() => setOpen(false)} className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/90 p-6">
+          <img src={src} alt={alt} className="pixel-box max-h-[75vh] max-w-full object-contain" />
+          <p className="max-w-3xl text-center text-2xl">{caption}</p>
+          <p className="font-pixel text-[10px] text-muted-foreground">Photo: Wikimedia Commons · click anywhere to close</p>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -145,7 +174,8 @@ const slides: Slide[] = [
     </div>) },
   { level: "LEVEL 3", title: "Meet Jwala Gutta", render: () => (
     <div className="grid gap-5 md:grid-cols-2">
-      <Card><p className="text-2xl leading-snug">One of India's most successful badminton players, known for her aggressive, left-handed doubles play. Born 7 September 1983 in Wardha, Maharashtra, to a Telugu father and a Chinese mother, she grew up in Hyderabad and trained under Dronacharya Award-winning coach S. M. Arif.</p></Card>
+      <div className="space-y-5"><Photo src={portrait.url} alt="Jwala Gutta in 2011" caption="Jwala Gutta, 2011" />
+      <Card><p className="text-2xl leading-snug">One of India's most successful badminton players, known for her aggressive, left-handed doubles play. Born 7 September 1983 in Wardha, Maharashtra, to a Telugu father and a Chinese mother, she grew up in Hyderabad and trained under Dronacharya Award-winning coach S. M. Arif.</p></Card></div>
       <Card tone="bg-muted"><h3 className="font-pixel text-sm text-secondary">PLAYER CARD</h3>
         <ul className="mt-4 space-y-2 text-2xl"><li>▸ Started badminton at age 6</li><li>▸ 14-time National Champion</li><li>▸ Rare forehand serve in doubles</li><li>▸ Arjuna Award winner</li><li>▸ Olympian: London 2012 & Rio 2016</li></ul></Card>
     </div>) },
@@ -153,20 +183,46 @@ const slides: Slide[] = [
     <Card><p className="text-3xl leading-snug">I am a badminton player myself. I want to gain experience, play in tournaments and become more athletic on court — and I always look to underrated badminton players for inspiration instead of football or cricket stars.</p></Card>) },
   { level: "LEVEL 5", title: "How she raised the consciousness", render: () => <Impact /> },
   { level: "LEVEL 6", title: "Historic milestones", render: () => (
+    <div className="grid gap-6 md:grid-cols-[3fr_1fr]">
     <div className="grid gap-4 md:grid-cols-2">
       {[["TOP 10 ×2", "Only Indian in the BWF top 10 in both doubles — No. 6 mixed (2010), No. 10 women's (2015)."],
         ["316 WINS", "Most match wins by any Indian doubles shuttler."],
         ["2 EVENTS", "First Indian badminton player to qualify for two events at one Olympics (London 2012)."],
         ["14 TITLES", "National Champion 14 times, dominating the domestic circuit for over a decade."]].map(([h, t]) => (
         <Card key={h}><h3 className="font-pixel text-base text-primary md:text-lg">{h}</h3><p className="mt-3 text-2xl leading-snug">{t}</p></Card>))}
+    </div>
+    <Photo src={arjuna.url} alt="President Pratibha Patil presenting the Arjuna Award to Jwala Gutta, 2011" caption="Receiving the Arjuna Award, 2011" tilt="rotate-2" />
     </div>) },
-  { level: "LEVEL 7", title: "Medal cabinet", render: () => <Medals /> },
+  { level: "LEVEL 7", title: "Medal cabinet", render: () => (
+    <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
+      <Medals />
+      <div className="grid gap-5">
+        <Photo src={cwg.url} alt="Jwala Gutta and Ashwini Ponnappa with Commonwealth Games gold medals, 2010" caption="CWG gold with Ashwini Ponnappa, Delhi 2010" />
+        <Photo src={diju.url} alt="Jwala Gutta with mixed doubles partner V. Diju" caption="Mixed doubles with V. Diju" tilt="rotate-2" />
+      </div>
+    </div>) },
   { level: "BONUS", title: "Audience Quiz", render: () => <Quiz /> },
   { level: "BOSS LEVEL", title: "Ask Gemini anything", render: () => <AskAI /> },
   { level: "GAME OVER", title: "", render: () => (
     <div className="text-center"><h2 className="text-pixel-shadow font-pixel text-2xl md:text-5xl">THANK YOU!</h2>
       <p className="mx-auto mt-6 max-w-2xl text-3xl">One voice, one smash, one stand — and the whole court changes. That's universal consciousness.</p>
       <p className="mt-8 font-pixel text-xs text-primary">CONTINUE? PRESS REPLAY</p></div>) },
+  { level: "CREDITS", title: "", render: () => (
+    <div className="text-center">
+      <h2 className="text-pixel-shadow font-pixel text-2xl md:text-4xl">CREDITS</h2>
+      <div className="mx-auto mt-10 grid max-w-3xl gap-5 md:grid-cols-2">
+        <Card><p className="font-pixel text-xs text-primary">BUILT WITH</p><p className="mt-3 font-pixel text-xl">LOVABLE</p><p className="mt-3 text-2xl">Interactive website, Gemini Q&amp;A and hosting.</p></Card>
+        <Card><p className="font-pixel text-xs text-secondary">DESIGNED IN</p><p className="mt-3 font-pixel text-xl">CANVA</p><p className="mt-3 text-2xl">Original presentation, content and pixel-art theme.</p></Card>
+      </div>
+      <p className="mt-10 text-3xl">Presentation by <span className="text-primary">Shubhang Mishra</span></p>
+    </div>) },
+  { level: "SOURCES", title: "Sources", render: () => (
+    <div className="space-y-5">
+      <Card><p className="font-pixel text-sm text-primary">WIKIPEDIA</p>
+        <a href="https://en.wikipedia.org/wiki/Jwala_Gutta" target="_blank" rel="noreferrer" className="mt-3 block break-all text-3xl underline">en.wikipedia.org/wiki/Jwala_Gutta</a>
+        <p className="mt-3 text-2xl text-muted-foreground">Biography, career facts and quotes. Text licensed CC BY-SA 4.0.</p></Card>
+      <Card tone="bg-muted"><p className="font-pixel text-sm text-secondary">PHOTOS</p><p className="mt-3 text-2xl">Wikimedia Commons — images linked from the Jwala Gutta Wikipedia article.</p></Card>
+    </div>) },
 ];
 
 function Deck() {
