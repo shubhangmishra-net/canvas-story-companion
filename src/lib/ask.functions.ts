@@ -12,7 +12,7 @@ export const askGemini = createServerFn({ method: "POST" })
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "X-Lovable-AIG-SDK": "fetch" },
       body: JSON.stringify({
-        model: "google/gemini-3.5-flash",
+        model: "google/gemini-3.8-flash",
         stream: true,
         messages: [{ role: "system", content: SYSTEM }, { role: "user", content: data.question }],
       }),
