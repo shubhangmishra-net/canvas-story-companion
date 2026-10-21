@@ -43,6 +43,7 @@ export const Route = createFileRoute("/api/ask")({
         let buf = "";
         const stream = new ReadableStream<Uint8Array>({
           async pull(ctrl) {
+            for (let sent = false; !sent;) {
             const { done, value } = await reader.read();
             if (done) { ctrl.close(); return; }
             buf += dec.decode(value, { stream: true });
@@ -55,8 +56,9 @@ export const Route = createFileRoute("/api/ask")({
               if (p === "[DONE]") continue;
               try {
                 const c = JSON.parse(p).choices?.[0]?.delta?.content;
-                if (c) ctrl.enqueue(enc.encode(c));
+                if (c) { ctrl.enqueue(enc.encode(c)); sent = true; }
               } catch { /* partial chunk */ }
+            }
             }
           },
           cancel() { reader.cancel(); },
