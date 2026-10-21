@@ -18,7 +18,9 @@ export const Route = createFileRoute("/api/ask")({
         const key = process.env["LOVABLE_API_KEY"];
         if (!key) return Response.json({ error: "AI is not configured." }, { status: 500 });
 
-        const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        let upstream: Response;
+        try {
+        upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           signal: request.signal,
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "X-Lovable-AIG-SDK": "fetch" },
@@ -29,6 +31,11 @@ export const Route = createFileRoute("/api/ask")({
             messages: [{ role: "system", content: SYSTEM }, { role: "user", content: parsed.data.question }],
           }),
         });
+        } catch (err) {
+          // Expected when the audience member leaves or the browser cancels mid-request.
+          if (request.signal.aborted || (err instanceof Error && err.name === "AbortError")) return new Response(null, { status: 499 });
+          return Response.json({ error: "Couldn't reach the AI. Try again." }, { status: 502 });
+        }
         if (!upstream.ok || !upstream.body) {
           let msg = "The AI couldn't answer right now.";
           if (upstream.status === 429) msg = "Too many questions at once — try again in a moment.";
@@ -44,7 +51,9 @@ export const Route = createFileRoute("/api/ask")({
         const stream = new ReadableStream<Uint8Array>({
           async pull(ctrl) {
             for (let sent = false; !sent;) {
-            const { done, value } = await reader.read();
+            let chunk: ReadableStreamReadResult<Uint8Array>;
+            try { chunk = await reader.read(); } catch { ctrl.close(); return; }
+            const { done, value } = chunk;
             if (done) { ctrl.close(); return; }
             buf += dec.decode(value, { stream: true });
             const lines = buf.split("\n");
